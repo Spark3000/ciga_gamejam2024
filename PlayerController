@@ -1,0 +1,96 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class GhostController : MonoBehaviour
+{
+    private Rigidbody2D rb;
+    private SpriteRenderer sprite;
+    private Animator anim;
+
+    private GameObject player;
+    private Playercontroller playerController;
+
+    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float maxDistance = 5f; // 最大活动范围
+
+    private bool isActive = false; // 是否为活动角色
+
+    private void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        rb.gravityScale = 0; // 禁用重力
+        sprite = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
+
+        player = GameObject.FindWithTag("Player"); // 假设第一个角色的tag为"Player"
+        playerController = player.GetComponent<Playercontroller>();
+
+        // 隐藏幽灵角色
+        gameObject.SetActive(false);
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.J))
+        {
+            ToggleCharacter();
+        }
+
+        if (isActive)
+        {
+            HandleMovement();
+            UpdateVision();
+        }
+    }
+
+    private void ToggleCharacter()
+    {
+        isActive = !isActive;
+        playerController.enabled = !isActive;
+        gameObject.SetActive(isActive);
+
+        if (isActive)
+        {
+            // 将幽灵角色移动到玩家位置
+            transform.position = player.transform.position;
+        }
+    }
+
+    private void HandleMovement()
+    {
+        float dirX = Input.GetAxisRaw("Horizontal");
+        float dirY = Input.GetAxisRaw("Vertical");
+        rb.velocity = new Vector2(dirX * moveSpeed, dirY * moveSpeed);
+
+        // 限制幽灵在最大活动范围内
+        Vector2 offset = transform.position - player.transform.position;
+        if (offset.magnitude > maxDistance)
+        {
+            offset = offset.normalized * maxDistance;
+            transform.position = player.transform.position + (Vector3)offset;
+        }
+
+        if (dirX != 0 || dirY != 0)
+        {
+            anim.SetInteger("state", 1); // 假设1为移动动画状态
+        }
+        else
+        {
+            anim.SetInteger("state", 0); // 假设0为静止动画状态
+        }
+    }
+
+    private void UpdateVision()
+    {
+        float distance = Vector2.Distance(transform.position, player.transform.position);
+        float alpha = Mathf.Clamp01(1 - distance / maxDistance);
+        
+        Color color = sprite.color;
+        color.a = alpha;
+        sprite.color = color;
+
+        // 更新背景视野
+        Camera.main.backgroundColor = Color.Lerp(Color.black, Color.white, alpha);
+    }
+}
